@@ -38,6 +38,8 @@ import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.SelectionRange
 import org.eclipse.lsp4j.SelectionRangeParams
 import org.eclipse.lsp4j.SignatureHelp
+import org.eclipse.lsp4j.SemanticTokens
+import org.eclipse.lsp4j.SemanticTokensParams
 import org.eclipse.lsp4j.TextDocumentPositionParams
 import org.eclipse.lsp4j.TextEdit
 import org.eclipse.lsp4j.{Position => LspPosition}
@@ -315,6 +317,16 @@ class Compilers(
       .getOrElse(Future.successful(Nil))
   }
 
+  def semanticTokens(
+      params: SemanticTokensParams,
+      token: CancelToken
+  ): Future[SemanticTokens] = {
+    //Under construction
+    scribe.info("Debug: Compiliers.semanticTokens:Start")
+    Future.successful(new SemanticTokens(Nil.asJava))
+  }
+  
+  
   def completions(
       params: CompletionParams,
       token: CancelToken
