@@ -321,11 +321,18 @@ class Compilers(
       params: SemanticTokensParams,
       token: CancelToken
   ): Future[SemanticTokens] = {
-    //Under construction
     scribe.info("Debug: Compiliers.semanticTokens:Start")
-    Future.successful(new SemanticTokens(Nil.asJava))
+    //Sample Return value for Demo
+    val expectedToken:List[Integer] =List(
+      //1:deltaLine, 2:deltaStartChar, 3:length, 
+      //4:tokenType, 5:tokenModifiers
+      1, 7,  4, 1,  0, //Main, No-Modifier
+      0, 9,  3, 11, 0, //add,  No-Modifier
+      0, 4,  1, 6,  0, //a of "a:int",  No-Modifier
+      0, 11, 1, 6, 0 //a of "a + 1",  No-Modifier
+    )
+    Future.successful(new SemanticTokens(expectedToken.asJava))
   }
-  
   
   def completions(
       params: CompletionParams,

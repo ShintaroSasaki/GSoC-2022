@@ -1190,6 +1190,27 @@ final class TestingServer(
       codeActions.map(_.getTitle()).mkString("\n")
     )
 
+
+  def assertSemanticHighlight(
+      filePath: String,
+      expectedTokensData: List[Int]
+  ): Future[Unit] = {
+    scribe.info("Debug:assertSemanticHighlight: Start")
+
+    val uri = toPath(filePath).toTextDocumentIdentifier
+    val params = new org.eclipse.lsp4j.SemanticTokensParams(uri)
+
+    for {
+      obtainedTokens <- server.semanticTokensFull(params).asScala
+    } yield {
+      Assertions.assertNoDiff(
+        expectedTokensData.sorted.mkString("\n"), 
+        obtainedTokens.getData().asScala.sorted.mkString("\n")
+      )
+    }
+  }
+
+
   def assertHighlight(
       filename: String,
       query: String,
