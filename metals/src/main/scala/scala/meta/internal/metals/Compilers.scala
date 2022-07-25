@@ -317,11 +317,26 @@ class Compilers(
       .getOrElse(Future.successful(Nil))
   }
 
+  // sasaki dev area is start↓
+
   def semanticTokens(
       params: SemanticTokensParams,
       token: CancelToken
   ): Future[SemanticTokens] = {
     scribe.info("Debug: Compiliers.semanticTokens:Start")
+
+    //Probably extra prcess is needed to construct vFile for Scala 3. See didchange.
+    val path = params.getTextDocument.getUri.toAbsolutePath
+    val uri = path.toNIO.toUri()
+    val input= path.toInputFromBuffers(buffers)
+    val vFile=CompilerVirtualFileParams(uri, input.value)
+
+    val strList = loadCompiler(path).map { 
+      pc => pc.semanticTokens(vFile)
+    }.getOrElse(Future.successful(List[String]()))
+
+    scribe.info("Result from token : " + strList.toString())
+
     //Sample Return value for Demo
     val expectedToken:List[Integer] =List(
       //1:deltaLine, 2:deltaStartChar, 3:length, 
@@ -331,9 +346,40 @@ class Compilers(
       0, 4,  1, 6,  0, //a of "a:int",  No-Modifier
       0, 11, 1, 6, 0 //a of "a + 1",  No-Modifier
     )
+
+    //return value
     Future.successful(new SemanticTokens(expectedToken.asJava))
+
   }
-  
+
+
+//   def ref_completions(
+//       params: CompletionParams,
+//       token: CancelToken
+//   ): Future[CompletionList] ={
+
+//     val path = params.getTextDocument.getUri.toAbsolutePath
+//     loadCompiler(path).map { 
+//       pc =>
+//         //Get offsetParams
+//         val (input, adjustRequest, _) = 
+//           sourceMapper.pcMapping(path, pc.scalaVersion())
+//         val metaPos = adjustRequest(params.getPosition()).toMeta(input)
+//         val offsetParams = CompilerOffsetParams.fromPos(metaPos, token)
+
+//         //Getting token
+//         val scanner = pc.newUnitParser(offsetParams.text())
+//                     .newScanner()
+//         scanner.init()
+
+
+
+
+//     }.getOrElse(Future.successful(new CompletionList(Nil.asJava)))
+//   }
+
+  // sasaki dev area is over↑
+
   def completions(
       params: CompletionParams,
       token: CancelToken
@@ -613,10 +659,8 @@ class Compilers(
   )(fn: (PresentationCompiler, Position, AdjustLspData) => T): Option[T] = {
     val path = params.getTextDocument.getUri.toAbsolutePath
     loadCompiler(path).map { compiler =>
-      val (input, pos, adjust) =
-        sourceAdjustments(
-          params,
-          compiler.scalaVersion()
+      val (input, pos, adjust) = sourceAdjustments(
+          params,compiler.scalaVersion()
         )
       val metaPos = pos.toMeta(input)
       fn(compiler, metaPos, adjust)

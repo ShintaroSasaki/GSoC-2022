@@ -10,6 +10,7 @@ import munit.TestOptions
 class SemanticHighlightLspSuite extends BaseLspSuite("SemanticHighlight") {
   
   test("Sample") {
+    scribe.info("Debug: SemanticHighlightLspSuite:Start")
     for{
     _ <-  initialize(
           s"""/metals.json
