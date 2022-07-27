@@ -93,6 +93,7 @@ object TestGroups {
       "tests.classFinder.ClassNameResolverSuite", "tests.JavaDefinitionSuite",
       "tests.IdentifierComparatorSuite", "tests.parsing.JavaEditDistanceSuite",
       "tests.PathTrieSuite")
+      ,Set("tests.SemanticHighlightLspSuite") //debugging
   )
 
 }

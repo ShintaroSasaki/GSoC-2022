@@ -36,6 +36,7 @@ import org.eclipse.lsp4j.Hover
 import org.eclipse.lsp4j.SelectionRange
 import org.eclipse.lsp4j.SignatureHelp
 import org.eclipse.lsp4j.TextEdit
+import org.eclipse.lsp4j.SignatureHelpTriggerKind
 
 case class ScalaPresentationCompiler(
     buildTargetIdentifier: String = "",
@@ -116,6 +117,86 @@ case class ScalaPresentationCompiler(
 
   def didClose(uri: URI): Unit = {}
 
+  /// under development s.sasaki ↓
+  // { line: 2, startChar: 10, length: 4, tokenType: "type", tokenModifiers: [] },
+  def semanticTokens(
+      params: VirtualFileParams
+   ): CompletableFuture[ju.List[String]] = {
+  //  ): CompletableFuture[ju.List[String]] = {
+  //  ): CompletableFuture[ju.List[TextEdit]] = {
+    import scala.collection.mutable.ListBuffer 
+    import scala.tools.nsc.ast.parser.Tokens
+
+    logger.info("Debug : Scala-PC :")
+
+    // val empty: ju.List[TextEdit] = new ju.ArrayList[TextEdit]()
+    val empty: ju.List[String] = new ju.ArrayList[String]()
+
+    logger.info(" --Before compilerAccess---")
+// try {
+    compilerAccess.withInterruptableCompiler(empty, params.token) { pc =>
+      logger.info(" --getting from pc---")
+      val scanner = pc.compiler()
+        .newUnitParser(params.text()).newScanner()
+      scanner.init()
+      val tokenBuffer = ListBuffer.empty[String]
+      // val buffer = ListBuffer.empty[Integer]
+      var line = 1
+      var lastOffset = 0
+
+      var logString = params.text()
+      // logString ++="\n" + "tokenName : " + token.getName.toString()
+      val strSep= ",  "//"\n"
+      val linSep= "\n"
+
+      while (scanner.token != Tokens.EOF) {
+        val token = scanner.token
+        token match {
+          case Tokens.NEWLINE | Tokens.NEWLINES =>
+            line += 1
+            lastOffset = scanner.offset
+          // SemanticTokenTypes.Keyword -> 1
+          case _ =>
+            
+            tokenBuffer.addAll(List(
+              token.toString()
+            ,  line.toString()
+            ,  (scanner.offset - lastOffset).toString // start offset
+            ,  scanner.name.toString //Tername
+            ,  scanner.strVal
+            ,  scanner.base.toString()
+            ))
+            logString ++= linSep
+            logString ++= strSep + "token : " + token.toString()
+            logString ++= strSep + "line : " +  line.toString()
+            logString ++= strSep + "start offset : " +  (scanner.offset - lastOffset).toString
+            logString ++= strSep + "termname : "  + scanner.name.toString
+            logString ++= strSep + "strVal : " +  scanner.strVal
+            logString ++= strSep + "base : " +  scanner.base.toString()
+            //Tokens.DEF
+            // convert offset to line and character
+            // scanner.offset -> (line, character)
+            // length is 3, type is 1, no modifiers currently
+            // val character = scanner.offset - lastOffset
+            // buffer.addAll(List(line, character, 3, 1, 0))
+        }
+        // val o = scanner.offset
+        scanner.nextToken()
+
+      }
+
+      logger.info(logString)
+      logger.info(" --compiler process end---")
+      // new SemanticTokens(buffer.toList.asJava)
+      tokenBuffer.toList.asJava
+      Nil.asJava
+    }
+// }catch{
+//     case e:Exception => logger.info(e.toString())
+//     new CompletableFuture[ju.List[String]]()
+// }
+  }
+  /// under development ↑
   override def complete(
       params: OffsetParams
   ): CompletableFuture[CompletionList] =

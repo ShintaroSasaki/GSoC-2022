@@ -99,6 +99,9 @@ import org.eclipse.lsp4j.jsonrpc.messages.{Either => JEither}
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.{lsp4j => l}
+import ujson.False
+import ujson.True
+import scala.tools.nsc.doc.model.Public
 
 class MetalsLanguageServer(
     ec: ExecutionContextExecutorService,
@@ -844,6 +847,9 @@ class MetalsLanguageServer(
         )
         capabilities.setFoldingRangeProvider(true)
         capabilities.setSelectionRangeProvider(true)
+        capabilities.setSemanticTokensProvider(
+          defaultSemanticTokensServerCapability
+        )
         capabilities.setCodeLensProvider(new CodeLensOptions(false))
         capabilities.setDefinitionProvider(true)
         capabilities.setImplementationProvider(true)
@@ -862,6 +868,7 @@ class MetalsLanguageServer(
         capabilities.setSignatureHelpProvider(
           new SignatureHelpOptions(List("(", "[", ",").asJava)
         )
+
         capabilities.setCompletionProvider(
           new CompletionOptions(
             clientConfig.isCompletionItemResolve,
@@ -1619,6 +1626,64 @@ class MetalsLanguageServer(
     }
     results
   }
+
+  /** Requesting semantic tokens for a whole file in order to highlight */
+  @JsonRequest("textDocument/semanticTokens/full")
+  def semanticTokensFull(params: SemanticTokensParams)
+  : CompletableFuture[SemanticTokens] ={
+    scribe.info("Debug: MetalsLanguageServer.semanticHighlighting: Start")
+    CancelTokens.future { token => compilers.semanticTokens(params, token) }
+  }
+
+  val SeverSemanticTokenTypes= List(
+      SemanticTokenTypes.Type,
+      SemanticTokenTypes.Class,
+      SemanticTokenTypes.Enum,
+      SemanticTokenTypes.Interface,
+      SemanticTokenTypes.Struct,
+      SemanticTokenTypes.TypeParameter,
+      SemanticTokenTypes.Parameter,
+      SemanticTokenTypes.Variable,
+      SemanticTokenTypes.Property,
+      SemanticTokenTypes.EnumMember,
+      SemanticTokenTypes.Event,
+      SemanticTokenTypes.Function,
+      SemanticTokenTypes.Method,
+      SemanticTokenTypes.Macro,
+      SemanticTokenTypes.Keyword,
+      SemanticTokenTypes.Modifier,
+      SemanticTokenTypes.Comment,
+      SemanticTokenTypes.String,
+      SemanticTokenTypes.Number,
+      SemanticTokenTypes.Regexp,
+      SemanticTokenTypes.Operator,
+      SemanticTokenTypes.Decorator
+    ).asJava
+
+  val SeverSemanticTokenModifiers = List(
+    SemanticTokenModifiers.Declaration,
+    SemanticTokenModifiers.Definition,
+    SemanticTokenModifiers.Readonly,
+    SemanticTokenModifiers.Static,
+    SemanticTokenModifiers.Deprecated,
+    SemanticTokenModifiers.Abstract,
+    SemanticTokenModifiers.Async,
+    SemanticTokenModifiers.Modification,
+    SemanticTokenModifiers.Documentation,
+    SemanticTokenModifiers.DefaultLibrary
+  ).asJava
+  
+  val defaultSemanticTokensServerCapability :SemanticTokensWithRegistrationOptions = 
+     new org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions(
+        new SemanticTokensLegend(
+          SeverSemanticTokenTypes,
+          SeverSemanticTokenModifiers
+        ), //legend used in this server.
+        new SemanticTokensServerFull(false), // Method 'full' is supported, but 'full/delta' is not.
+        false, // Method 'range' is not supported.
+        null //Dynamic registration is not supported.
+    )
+  
 
   @JsonRequest("textDocument/completion")
   def completion(params: CompletionParams): CompletableFuture[CompletionList] =

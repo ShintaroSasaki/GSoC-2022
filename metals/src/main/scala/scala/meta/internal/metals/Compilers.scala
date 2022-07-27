@@ -38,6 +38,8 @@ import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.SelectionRange
 import org.eclipse.lsp4j.SelectionRangeParams
 import org.eclipse.lsp4j.SignatureHelp
+import org.eclipse.lsp4j.SemanticTokens
+import org.eclipse.lsp4j.SemanticTokensParams
 import org.eclipse.lsp4j.TextDocumentPositionParams
 import org.eclipse.lsp4j.TextEdit
 import org.eclipse.lsp4j.{Position => LspPosition}
@@ -314,6 +316,83 @@ class Compilers(
       }
       .getOrElse(Future.successful(Nil))
   }
+
+  // sasaki dev area is start↓
+
+  def semanticTokens(
+      params: SemanticTokensParams,
+      token: CancelToken
+  ): Future[SemanticTokens] = {
+    scribe.info("Debug: Compiliers.semanticTokens:Start")
+
+    //Probably extra prcess is needed to construct vFile for Scala 3. See didchange.
+    val path = params.getTextDocument.getUri.toAbsolutePath
+    val uri = path.toNIO.toUri()
+    val input= path.toInputFromBuffers(buffers)
+    val vFile=CompilerVirtualFileParams(uri, input.value)
+
+     val strList = loadCompiler(path).map{
+        pc => 
+          pc.semanticTokens(vFile)
+          .asScala
+          .map{
+            plist => plist
+          }
+
+      }
+      //   .asScala.onComplete{
+      //   case Success(value) => value
+      //   case Failuer(e) => 
+      //     scribe.info("Result from token : " + e.printStactrace())            
+      //     List[String]()
+      // }
+
+      // }.getOrElse(Future.successful(List[String]()))
+
+     Thread.sleep(5000) //for debug
+    scribe.info("Result from token : " + strList.toString())
+
+    //Sample Return value for Demo
+    val expectedToken:List[Integer] =List(
+      //1:deltaLine, 2:deltaStartChar, 3:length, 
+      //4:tokenType, 5:tokenModifiers
+      1, 7,  4, 1,  0, //Main, No-Modifier
+      0, 9,  3, 11, 0, //add,  No-Modifier
+      0, 4,  1, 6,  0, //a of "a:int",  No-Modifier
+      0, 11, 1, 6, 0 //a of "a + 1",  No-Modifier
+    )
+
+    //return value
+    Future.successful(new SemanticTokens(expectedToken.asJava))
+
+  }
+
+
+  def ref_completions(
+      params: CompletionParams,
+      token: CancelToken
+  ): Future[CompletionList] ={
+
+    val path = params.getTextDocument.getUri.toAbsolutePath
+    loadCompiler(path).map { 
+      pc =>
+        //Get offsetParams
+        val (input, adjustRequest, _) = 
+          sourceMapper.pcMapping(path, pc.scalaVersion())
+        val metaPos = adjustRequest(params.getPosition()).toMeta(input)
+        val offsetParams = CompilerOffsetParams.fromPos(metaPos, token)
+
+        //Getting token
+        pc.complete(offsetParams)
+        .asScala
+        .map { list =>
+          // adjust.adjustCompletionListInPlace(list)
+          list
+        }
+    }.getOrElse(Future.successful(new CompletionList(Nil.asJava)))
+  }
+
+  // sasaki dev area is over↑
 
   def completions(
       params: CompletionParams,
@@ -594,10 +673,8 @@ class Compilers(
   )(fn: (PresentationCompiler, Position, AdjustLspData) => T): Option[T] = {
     val path = params.getTextDocument.getUri.toAbsolutePath
     loadCompiler(path).map { compiler =>
-      val (input, pos, adjust) =
-        sourceAdjustments(
-          params,
-          compiler.scalaVersion()
+      val (input, pos, adjust) = sourceAdjustments(
+          params,compiler.scalaVersion()
         )
       val metaPos = pos.toMeta(input)
       fn(compiler, metaPos, adjust)
