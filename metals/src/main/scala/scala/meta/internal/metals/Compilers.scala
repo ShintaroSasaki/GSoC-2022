@@ -331,10 +331,25 @@ class Compilers(
     val input= path.toInputFromBuffers(buffers)
     val vFile=CompilerVirtualFileParams(uri, input.value)
 
-    val strList = loadCompiler(path).map { 
-      pc => pc.semanticTokens(vFile)
-    }.getOrElse(Future.successful(List[String]()))
+     val strList = loadCompiler(path).map{
+        pc => 
+          pc.semanticTokens(vFile)
+          .asScala
+          .map{
+            plist => plist
+          }
 
+      }
+      //   .asScala.onComplete{
+      //   case Success(value) => value
+      //   case Failuer(e) => 
+      //     scribe.info("Result from token : " + e.printStactrace())            
+      //     List[String]()
+      // }
+
+      // }.getOrElse(Future.successful(List[String]()))
+
+     Thread.sleep(5000) //for debug
     scribe.info("Result from token : " + strList.toString())
 
     //Sample Return value for Demo
@@ -353,30 +368,29 @@ class Compilers(
   }
 
 
-//   def ref_completions(
-//       params: CompletionParams,
-//       token: CancelToken
-//   ): Future[CompletionList] ={
+  def ref_completions(
+      params: CompletionParams,
+      token: CancelToken
+  ): Future[CompletionList] ={
 
-//     val path = params.getTextDocument.getUri.toAbsolutePath
-//     loadCompiler(path).map { 
-//       pc =>
-//         //Get offsetParams
-//         val (input, adjustRequest, _) = 
-//           sourceMapper.pcMapping(path, pc.scalaVersion())
-//         val metaPos = adjustRequest(params.getPosition()).toMeta(input)
-//         val offsetParams = CompilerOffsetParams.fromPos(metaPos, token)
+    val path = params.getTextDocument.getUri.toAbsolutePath
+    loadCompiler(path).map { 
+      pc =>
+        //Get offsetParams
+        val (input, adjustRequest, _) = 
+          sourceMapper.pcMapping(path, pc.scalaVersion())
+        val metaPos = adjustRequest(params.getPosition()).toMeta(input)
+        val offsetParams = CompilerOffsetParams.fromPos(metaPos, token)
 
-//         //Getting token
-//         val scanner = pc.newUnitParser(offsetParams.text())
-//                     .newScanner()
-//         scanner.init()
-
-
-
-
-//     }.getOrElse(Future.successful(new CompletionList(Nil.asJava)))
-//   }
+        //Getting token
+        pc.complete(offsetParams)
+        .asScala
+        .map { list =>
+          // adjust.adjustCompletionListInPlace(list)
+          list
+        }
+    }.getOrElse(Future.successful(new CompletionList(Nil.asJava)))
+  }
 
   // sasaki dev area is over↑
 

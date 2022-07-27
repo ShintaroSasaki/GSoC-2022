@@ -122,6 +122,7 @@ case class ScalaPresentationCompiler(
   def semanticTokens(
       params: VirtualFileParams
    ): CompletableFuture[ju.List[String]] = {
+  //  ): CompletableFuture[ju.List[String]] = {
   //  ): CompletableFuture[ju.List[TextEdit]] = {
     import scala.collection.mutable.ListBuffer 
     import scala.tools.nsc.ast.parser.Tokens
@@ -142,6 +143,12 @@ case class ScalaPresentationCompiler(
       // val buffer = ListBuffer.empty[Integer]
       var line = 1
       var lastOffset = 0
+
+      var logString = params.text()
+      // logString ++="\n" + "tokenName : " + token.getName.toString()
+      val strSep= ",  "//"\n"
+      val linSep= "\n"
+
       while (scanner.token != Tokens.EOF) {
         val token = scanner.token
         token match {
@@ -150,6 +157,7 @@ case class ScalaPresentationCompiler(
             lastOffset = scanner.offset
           // SemanticTokenTypes.Keyword -> 1
           case _ =>
+            
             tokenBuffer.addAll(List(
               token.toString()
             ,  line.toString()
@@ -158,12 +166,13 @@ case class ScalaPresentationCompiler(
             ,  scanner.strVal
             ,  scanner.base.toString()
             ))
-logger.info("token : " + token.toString())
-logger.info("line : " +  line.toString())
-logger.info("start offset : " +  (scanner.offset - lastOffset).toString) // start offset
-logger.info("termname : "  + scanner.name.toString) //Tername
-logger.info("strVal : " +  scanner.strVal)
-logger.info("base : " +  scanner.base.toString())
+            logString ++= linSep
+            logString ++= strSep + "token : " + token.toString()
+            logString ++= strSep + "line : " +  line.toString()
+            logString ++= strSep + "start offset : " +  (scanner.offset - lastOffset).toString
+            logString ++= strSep + "termname : "  + scanner.name.toString
+            logString ++= strSep + "strVal : " +  scanner.strVal
+            logString ++= strSep + "base : " +  scanner.base.toString()
             //Tokens.DEF
             // convert offset to line and character
             // scanner.offset -> (line, character)
@@ -175,6 +184,8 @@ logger.info("base : " +  scanner.base.toString())
         scanner.nextToken()
 
       }
+
+      logger.info(logString)
       logger.info(" --compiler process end---")
       // new SemanticTokens(buffer.toList.asJava)
       tokenBuffer.toList.asJava
